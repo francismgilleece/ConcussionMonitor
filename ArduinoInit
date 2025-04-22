@@ -1,0 +1,87 @@
+#include <Wire.h>
+#include <SPI.h>
+#include <Adafruit_ADXL345_U.h>
+#include <ESP8266WiFi.h>
+#include <FirebaseArduino.h>
+
+Adafruit_ADXL345_Unified accel1 = Adafruit_ADXL345_Unified(12345);
+Adafruit_ADXL345_Unified accel2 = Adafruit_ADXL345_Unified(12346);
+Adafruit_ADXL345_Unified accel3 = Adafruit_ADXL345_Unified(12347);
+Adafruit_ADXL345_Unified accel4 = Adafruit_ADXL345_Unified(12348);
+
+#define WIFI_SSID "your_SSID"
+#define WIFI_PASSWORD "your_PASSWORD"
+#define FIREBASE_HOST "your-firebase-project.firebaseio.com"
+#define FIREBASE_AUTH "your_firebase_secret"
+//initialize each accelerometer
+void setup(void) {
+  Serial.begin(9600);
+  Wire.begin();
+  
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Connecting");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+  Serial.print("Connected, IP address: ");
+  Serial.println(WiFi.localIP());
+
+  Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
+  
+  if(!accel1.begin()){
+    Serial.println("Couldn't find ADXL345 #1");
+  }
+  if(!accel2.begin()){
+    Serial.println("Couldn't find ADXL345 #2");
+  }
+  if(!accel3.begin()){
+    Serial.println("Couldn't find ADXL345 #3");
+  }
+  if(!accel4.begin()){
+    Serial.println("Couldn't find ADXL345 #4");
+  }
+}
+//begin loop if not interrupted
+void loop(void) {
+  sensors_event_t event1, event2, event3, event4;
+  
+  accel1.getEvent(&event1);
+  accel2.getEvent(&event2);
+  accel3.getEvent(&event3);
+  accel4.getEvent(&event4);
+  
+  float x1 = event1.acceleration.x, y1 = event1.acceleration.y, z1 = event1.acceleration.z;
+  float x2 = event2.acceleration.x, y2 = event2.acceleration.y, z2 = event2.acceleration.z;
+  float x3 = event3.acceleration.x, y3 = event3.acceleration.y, z3 = event3.acceleration.z;
+  float x4 = event4.acceleration.x, y4 = event4.acceleration.y, z4 = event4.acceleration.z;
+  
+  long time = millis();
+  
+  // Check for extreme measurements
+  if (abs(x1) > 10 || abs(y1) > 10 || abs(z1) > 10 ||
+      abs(x2) > 10 || abs(y2) > 10 || abs(z2) > 10 ||
+      abs(x3) > 10 || abs(y3) > 10 || abs(z3) > 10 ||
+      abs(x4) > 10 || abs(y4) > 10 || abs(z4) > 10) {
+    
+    FirebaseJson json;
+    json.set("time", time);
+    json.set("accel1/x", x1);
+    json.set("accel1/y", y1);
+    json.set("accel1/z", z1);
+    json.set("accel2/x", x2);
+    json.set("accel2/y", y2);
+    json.set("accel2/z", z2);
+    json.set("accel3/x", x3);
+    json.set("accel3/y", y3);
+    json.set("accel3/z", z3);
+    json.set("accel4/x", x4);
+    json.set("accel4/y", y4);
+    json.set("accel4/z", z4);
+    
+    Firebase.setJSON("measurements", json);
+  }
+  
+  delay(100);
+}
